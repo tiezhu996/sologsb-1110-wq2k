@@ -10,12 +10,15 @@ export type WoodGrain = '直纹' | '水波纹';
 /** 缺陷 */
 export type WoodDefect = '无' | '节疤' | '裂纹';
 
+/** 配对复核状态：正常 / 待复核（板材重新登记后） / 待定（换料超差） */
+export type PairReview = 'normal' | 'review' | 'pending';
+
 /** 板材（面板 / 底板） */
 export interface WoodBoard {
   id: string;
   /** 板材号 */
   boardNo: string;
-  /** 所属琴号：同一琴号下面板与底板配对绑定 */
+  /** 所属琴号：同一琴号下面板与底板配对绑定；空串表示在库板材（料库） */
   guqinNo: string;
   /** 面板 / 底板 */
   part: BoardPart;
@@ -31,6 +34,8 @@ export interface WoodBoard {
   defect: WoodDefect;
   /** 入库时间 ISO */
   receivedAt: string;
+  /** 配对复核状态（缺省视为正常） */
+  review?: PairReview;
   /** 备注 */
   remark?: string;
 }
@@ -39,6 +44,11 @@ export const BOARD_PARTS: BoardPart[] = ['面板', '底板'];
 export const WOOD_SPECIES: WoodSpecies[] = ['桐木', '杉木', '梓木'];
 export const WOOD_GRAINS: WoodGrain[] = ['直纹', '水波纹'];
 export const WOOD_DEFECTS: WoodDefect[] = ['无', '节疤', '裂纹'];
+export const PAIR_REVIEW_LABELS: Record<PairReview, string> = {
+  normal: '正常',
+  review: '待复核',
+  pending: '待定',
+};
 
 /** 配对后的琴坯板材（面板 + 底板 + 含水率回显） */
 export interface BoardPair {
@@ -49,4 +59,6 @@ export interface BoardPair {
   /** 回显含水率（由阴干年限推算，%） */
   moisturePct: number;
   matched: boolean;
+  /** 配对复核状态：待复核 / 待定期间不计入选材完成 */
+  review: PairReview;
 }

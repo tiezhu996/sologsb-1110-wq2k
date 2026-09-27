@@ -37,7 +37,7 @@ const TARGET_MM = 1.0;
 
 /**
  * 按选材/掏膛/灰胎/上弦计算每张琴的阶段推进比与缺失项。
- * 选材：面板与底板配对齐全；掏膛：有槽腹记录；灰胎：累计厚度达标；上弦：有上弦记录。
+ * 选材：面板与底板配对齐全且复核状态正常（待复核/待定不算完成）；掏膛：有槽腹记录；灰胎：累计厚度达标；上弦：有上弦记录。
  */
 export function useStageProgress() {
   const boardStore = useBoardStore();
@@ -47,7 +47,9 @@ export function useStageProgress() {
 
   const guqinNos = computed(() => {
     const set = new Set<string>();
-    boardStore.boards.forEach((b) => set.add(b.guqinNo));
+    boardStore.boards.forEach((b) => {
+      if (b.guqinNo) set.add(b.guqinNo);
+    });
     chamberStore.chambers.forEach((c) => set.add(c.guqinNo));
     lacquerStore.layers.forEach((l) => set.add(l.guqinNo));
     stringingStore.stringings.forEach((s) => set.add(s.guqinNo));
@@ -59,18 +61,29 @@ export function useStageProgress() {
       const boards = boardStore.boards.filter((b) => b.guqinNo === guqinNo);
       const panel = boards.find((b) => b.part === '面板');
       const base = boards.find((b) => b.part === '底板');
+      const pair = boardStore.pairs.find((p) => p.guqinNo === guqinNo);
       const chamber = chamberStore.chambers.find((c) => c.guqinNo === guqinNo);
       const layers = lacquerStore.layers.filter((l) => l.guqinNo === guqinNo);
       const total = cumulativeThickness(layers);
       const stringing = stringingStore.stringings.find((s) => s.guqinNo === guqinNo);
       const species = panel?.species ?? base?.species ?? '';
 
+      // 配对齐全且复核状态正常才算选材完成；待复核 / 待定期间退出选材完成
+      const selectDone = Boolean(pair?.matched) && pair?.review === 'normal';
+      const selectDetail = (() => {
+        if (!panel || !base) return '面板或底板缺失';
+        const desc = `${panel.species}面板 + ${base.species}底板，阴干 ${Math.max(panel.dryYears, base.dryYears)} 年`;
+        if (pair?.review === 'review') return `${desc}；板材重新登记，待复核`;
+        if (pair?.review === 'pending') return `${desc}；换料超差，待定`;
+        return desc;
+      })();
+
       const stages: StageItem[] = [
         {
           key: 'select',
           label: STAGE_LABELS.select,
-          done: Boolean(panel && base),
-          detail: panel && base ? `${panel.species}面板 + ${base.species}底板，阴干 ${Math.max(panel.dryYears, base.dryYears)} 年` : '面板或底板缺失',
+          done: selectDone,
+          detail: selectDetail,
         },
         {
           key: 'carve',
