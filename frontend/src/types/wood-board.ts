@@ -10,12 +10,18 @@ export type WoodGrain = '直纹' | '水波纹';
 /** 缺陷 */
 export type WoodDefect = '无' | '节疤' | '裂纹';
 
+/**
+ * 板材状态：
+ * 在库（未配琴，可配任意琴）/ 已配对 / 待复核（重测厚度或改阴干年限后待确认）/ 待定（换料超差待确认）
+ */
+export type BoardStatus = '在库' | '已配对' | '待复核' | '待定';
+
 /** 板材（面板 / 底板） */
 export interface WoodBoard {
   id: string;
   /** 板材号 */
   boardNo: string;
-  /** 所属琴号：同一琴号下面板与底板配对绑定 */
+  /** 所属琴号：同一琴号下面板与底板配对绑定；空串表示在料库 */
   guqinNo: string;
   /** 面板 / 底板 */
   part: BoardPart;
@@ -31,6 +37,10 @@ export interface WoodBoard {
   defect: WoodDefect;
   /** 入库时间 ISO */
   receivedAt: string;
+  /** 配对状态（缺省按 guqinNo 推导，兼容旧数据） */
+  status?: BoardStatus;
+  /** 待复核 / 待定原因（改尺寸或换料超差说明） */
+  reviewNote?: string;
   /** 备注 */
   remark?: string;
 }
@@ -39,6 +49,7 @@ export const BOARD_PARTS: BoardPart[] = ['面板', '底板'];
 export const WOOD_SPECIES: WoodSpecies[] = ['桐木', '杉木', '梓木'];
 export const WOOD_GRAINS: WoodGrain[] = ['直纹', '水波纹'];
 export const WOOD_DEFECTS: WoodDefect[] = ['无', '节疤', '裂纹'];
+export const BOARD_STATUSES: BoardStatus[] = ['在库', '已配对', '待复核', '待定'];
 
 /** 配对后的琴坯板材（面板 + 底板 + 含水率回显） */
 export interface BoardPair {
@@ -49,4 +60,8 @@ export interface BoardPair {
   /** 回显含水率（由阴干年限推算，%） */
   moisturePct: number;
   matched: boolean;
+  /** 任一侧板材待复核 / 待定：退出选材完成，确认后恢复 */
+  needsReview: boolean;
+  /** 待复核 / 待定原因汇总 */
+  pendingNote: string;
 }

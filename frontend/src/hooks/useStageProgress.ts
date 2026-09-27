@@ -4,6 +4,7 @@ import { useChamberStore } from '../stores/chamberStore';
 import { useLacquerStore } from '../stores/lacquerStore';
 import { useStringingStore } from '../stores/stringingStore';
 import { cumulativeThickness } from '../utils/layer';
+import { boardPending, boardStatusOf } from '../utils/wood';
 
 export type StageKey = 'select' | 'carve' | 'lacquer' | 'string';
 
@@ -23,6 +24,8 @@ export interface StageProgress {
   /** 缺失项 */
   missing: string[];
   cumulativeMm: number;
+  /** 配对齐全但有待复核 / 待定板材（选材退出完成，确认后恢复） */
+  selectPending: boolean;
 }
 
 export const STAGE_LABELS: Record<StageKey, string> = {
@@ -47,7 +50,9 @@ export function useStageProgress() {
 
   const guqinNos = computed(() => {
     const set = new Set<string>();
-    boardStore.boards.forEach((b) => set.add(b.guqinNo));
+    boardStore.boards.forEach((b) => {
+      if (b.guqinNo) set.add(b.guqinNo);
+    });
     chamberStore.chambers.forEach((c) => set.add(c.guqinNo));
     lacquerStore.layers.forEach((l) => set.add(l.guqinNo));
     stringingStore.stringings.forEach((s) => set.add(s.guqinNo));
@@ -65,12 +70,26 @@ export function useStageProgress() {
       const stringing = stringingStore.stringings.find((s) => s.guqinNo === guqinNo);
       const species = panel?.species ?? base?.species ?? '';
 
+      // 配对齐全且没有待复核 / 待定板材，选材才算完成
+      const paired = Boolean(panel && base);
+      const pendingBoards = [panel, base].filter((b): b is NonNullable<typeof b> => Boolean(b && boardPending(b)));
+      const selectDone = paired && pendingBoards.length === 0;
+      const selectDetail = (() => {
+        if (!paired) return '面板或底板缺失';
+        if (pendingBoards.length) {
+          return pendingBoards
+            .map((b) => `${b.part}${b.boardNo} ${boardStatusOf(b)}${b.reviewNote ? `（${b.reviewNote}）` : ''}`)
+            .join('；');
+        }
+        return `${panel!.species}面板 + ${base!.species}底板，阴干 ${Math.max(panel!.dryYears, base!.dryYears)} 年`;
+      })();
+
       const stages: StageItem[] = [
         {
           key: 'select',
           label: STAGE_LABELS.select,
-          done: Boolean(panel && base),
-          detail: panel && base ? `${panel.species}面板 + ${base.species}底板，阴干 ${Math.max(panel.dryYears, base.dryYears)} 年` : '面板或底板缺失',
+          done: selectDone,
+          detail: selectDetail,
         },
         {
           key: 'carve',
@@ -100,6 +119,7 @@ export function useStageProgress() {
         ratio: Math.round((doneCount / stages.length) * 100),
         missing: stages.filter((s) => !s.done).map((s) => s.label),
         cumulativeMm: Number(total.toFixed(2)),
+        selectPending: paired && pendingBoards.length > 0,
       };
     }),
   );
@@ -117,6 +137,8 @@ export function useStageProgress() {
       total: progressList.value.length,
       completed: progressList.value.filter((item) => item.ratio === 100).length,
       averageRatio: Math.round(progressList.value.reduce((sum, item) => sum + item.ratio, 0) / total),
+      /** 配对齐全但待复核 / 待定的琴坯数（选材退出完成） */
+      reviewPending: progressList.value.filter((item) => item.selectPending).length,
     };
   });
 

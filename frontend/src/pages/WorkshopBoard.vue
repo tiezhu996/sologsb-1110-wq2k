@@ -101,7 +101,10 @@ const events = computed<TimelineEvent[]>(() => {
       <template #header>
         <div class="card-head">
           <span>阶段统计（已完成琴坯数）</span>
-          <span class="card-note">板材 {{ boardStore.boards.length }} 块（可用 {{ boardStore.usableCount }} 块）· 髹漆 {{ lacquerStore.layers.length }} 遍 · 荫房异常 {{ lacquerStore.outOfRangeCount }} 遍</span>
+          <span class="card-note">
+            板材 {{ boardStore.boards.length }} 块（可用 {{ boardStore.usableCount }} 块）· 髹漆 {{ lacquerStore.layers.length }} 遍 · 荫房异常
+            {{ lacquerStore.outOfRangeCount }} 遍 · 待复核 {{ summary.reviewPending }} 张
+          </span>
         </div>
       </template>
       <el-row :gutter="12">
@@ -132,15 +135,15 @@ const events = computed<TimelineEvent[]>(() => {
         <el-table-column prop="species" label="树种" width="90" />
         <el-table-column label="四阶段" min-width="300">
           <template #default="scope">
-            <el-tag
-              v-for="stage in scope.row.stages"
-              :key="stage.key"
-              class="stage-tag"
-              :type="stage.done ? 'success' : 'info'"
-              effect="plain"
-            >
-              {{ stage.label }}{{ stage.done ? '✓' : '…' }}
-            </el-tag>
+            <el-tooltip v-for="stage in scope.row.stages" :key="stage.key" :content="stage.detail" placement="top">
+              <el-tag
+                class="stage-tag"
+                :type="stage.done ? 'success' : stage.key === 'select' && scope.row.selectPending ? 'warning' : 'info'"
+                effect="plain"
+              >
+                {{ stage.label }}{{ stage.done ? '✓' : stage.key === 'select' && scope.row.selectPending ? '待复核' : '…' }}
+              </el-tag>
+            </el-tooltip>
           </template>
         </el-table-column>
         <el-table-column label="推进比" width="180">

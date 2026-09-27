@@ -8,7 +8,7 @@ import type { Stringing } from '../types/stringing';
 export const DB_NAME = 'gbguqin-db';
 
 /** 当前 schema 版本，与 db.version(n) 对应 */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 class GuqinDB extends Dexie {
   boards!: Table<WoodBoard, string>;
@@ -49,6 +49,19 @@ class GuqinDB extends Dexie {
             }
           });
       });
+
+    // v3：板材引入配对状态（在库/已配对/待复核/待定），回填历史板材的 status。
+    // 升级前请在顶栏「导出备份」导出 JSON。
+    this.version(3).upgrade(async (tx) => {
+      await tx
+        .table('boards')
+        .toCollection()
+        .modify((row: WoodBoard) => {
+          if (!row.status) {
+            row.status = row.guqinNo ? '已配对' : '在库';
+          }
+        });
+    });
   }
 }
 
